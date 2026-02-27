@@ -72,6 +72,15 @@ export interface Event {
   category: string;
 }
 
+export const guardian = {
+  id: 'G001',
+  name: 'John Doe',
+  role: 'Parent',
+  email: 'john.doe@example.com',
+  phone: '+123456789',
+  address: '123 Main Street, City, Country'
+};
+
 export const mockChildren: Child[] = [
   {
     id: '1',

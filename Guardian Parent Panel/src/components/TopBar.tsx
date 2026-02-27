@@ -1,24 +1,37 @@
 import { Bell, ChevronDown, User, Moon, Sun } from 'lucide-react';
-import { mockChildren, type Child } from '../data/mockData';
+import { mockChildren, mockMessages, type Child } from '../data/mockData';
 import { useState, useRef } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useClickOutside } from '../hooks/useClickOutside';
+import type { NavigationItem } from '../App';
+import { mockNotices } from '../data/mockData';
 
 interface TopBarProps {
   selectedChild: Child;
   onChildChange: (childId: string) => void;
+  onNavigate: (view: NavigationItem) => void;
 }
 
-export function TopBar({ selectedChild, onChildChange }: TopBarProps) {
+export function TopBar({ selectedChild, onChildChange, onNavigate }: TopBarProps) {
   const [showChildDropdown, setShowChildDropdown] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const { theme, toggleTheme } = useTheme();
 
   const [showNotifications, setShowNotifications] = useState(false);
-  const mockNotifications = [
-    { id: 1, message: 'New exam schedule released', read: false },
-    { id: 2, message: 'Fee payment reminder', read: true },
-    { id: 3, message: 'New message from Mr. Cooper', read: false }
+  const unreadNotices = mockNotices.filter(n => !n.isRead);
+
+  const unreadMessages = mockMessages[selectedChild.id]?.filter(m => !m.isRead) || [];
+  const notifications = [
+    ...mockNotices.filter(n => !n.isRead).map(n => ({
+      id: `notice-${n.id}`,
+      type: 'notice' as const,
+      title: n.title
+    })),
+    ...unreadMessages.map(m => ({
+      id: `message-${m.id}`,
+      type: 'message' as const,
+      title: `New message from ${m.from}`
+    }))
   ];
 
   const childDropdownRef = useRef<HTMLDivElement>(null);
@@ -109,29 +122,34 @@ export function TopBar({ selectedChild, onChildChange }: TopBarProps) {
               className="relative p-2 transition-colors rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-700"
             >
               <Bell className="w-5 h-5 text-neutral-600 dark:text-neutral-300" />
-              {mockNotifications.some(n => !n.read) && (
+              {notifications.length > 0 && (
                 <span className="absolute w-2 h-2 bg-red-500 rounded-full top-1 right-1"></span>
               )}
             </button>
 
             {showNotifications && (
-              <div className="absolute right-0 w-48 py-2 mt-2 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg shadow-lg z-[60]">
+              <div className="absolute right-0 w-64 py-2 mt-2 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg shadow-lg z-[60]">
 
-                {mockNotifications.length > 0 ? (
-                  mockNotifications.map((notif) => (
+                {notifications.length > 0 ? (
+                  notifications.map((notif) => (
                     <button
                       key={notif.id}
-                      className={`w-full px-4 py-2 text-sm text-left hover:bg-neutral-50 dark:hover:bg-neutral-700 ${!notif.read
-                        ? 'text-neutral-900 dark:text-white font-medium'
-                        : 'text-neutral-500 dark:text-neutral-400'
-                        }`}
+                      onClick={() => {
+                        if (notif.type === 'notice') {
+                          onNavigate('notices');
+                        } else {
+                          onNavigate('messages');
+                        }
+                        setShowNotifications(false);
+                      }}
+                      className="w-full px-4 py-3 text-sm text-left hover:bg-neutral-50 dark:hover:bg-neutral-700 text-neutral-900 dark:text-white"
                     >
-                      {notif.message}
+                      {notif.title}
                     </button>
                   ))
                 ) : (
-                  <p className="px-4 py-2 text-sm text-neutral-500 dark:text-neutral-400">
-                    No notifications
+                  <p className="px-4 py-3 text-sm text-neutral-500 dark:text-neutral-400">
+                    No new notifications
                   </p>
                 )}
 
@@ -151,14 +169,25 @@ export function TopBar({ selectedChild, onChildChange }: TopBarProps) {
 
             {showProfileMenu && (
               <div className="absolute right-0 w-48 py-2 mt-2 bg-white border rounded-lg shadow-lg dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700">
-                <button className="w-full px-4 py-2 text-sm text-left text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-700">
+                <button
+                  onClick={() =>{
+                    setShowProfileMenu(false);
+                    onNavigate('profile');
+                  }}
+                  className="w-full px-4 py-2 text-sm text-left text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-700">
                   Profile
                 </button>
-                <button className="w-full px-4 py-2 text-sm text-left text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-700">
+                <button
+                  onClick={() => {
+                    setShowProfileMenu(false);
+                    onNavigate('settings');
+                  }}
+                  className="w-full px-4 py-2 text-sm text-left text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-700">
                   Settings
                 </button>
                 <hr className="my-2 border-neutral-200 dark:border-neutral-700" />
-                <button className="w-full px-4 py-2 text-sm text-left text-red-600 hover:bg-neutral-50 dark:hover:bg-neutral-700">
+                <button
+                  className="w-full px-4 py-2 text-sm text-left text-red-600 hover:bg-neutral-50 dark:hover:bg-neutral-700">
                   Logout
                 </button>
               </div>

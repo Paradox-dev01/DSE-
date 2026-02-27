@@ -27,14 +27,14 @@ export function Notices() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl md:text-3xl font-semibold text-neutral-900 dark:text-white">Notices & Announcements</h1>
-        <p className="text-neutral-600 dark:text-neutral-500 mt-1">Stay updated with school announcements</p>
+        <h1 className="text-2xl font-semibold md:text-3xl text-neutral-900 dark:text-white">Notices & Announcements</h1>
+        <p className="mt-1 text-neutral-600 dark:text-neutral-500">Stay updated with school announcements</p>
       </div>
 
       {/* Filter */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm border-neutral-200 dark:bg-neutral-800 dark:border-neutral-700">
+      <div className="p-4 bg-white shadow-sm rounded-2xl border-neutral-200 dark:bg-neutral-800 dark:border-neutral-700">
         <div className="flex items-center gap-2 overflow-x-auto">
-          <Filter className="w-5 h-5 text-neutral-400 flex-shrink-0" />
+          <Filter className="flex-shrink-0 w-5 h-5 text-neutral-400" />
           {(['all', 'academic', 'event', 'emergency', 'general'] as CategoryFilter[]).map((category) => (
             <button
               key={category}
@@ -54,7 +54,7 @@ export function Notices() {
       {/* Pinned Notices */}
       {pinnedNotices.length > 0 && (
         <div className="space-y-3">
-          <h2 className="text-lg font-semibold text-neutral-900 dark:text-white flex items-center gap-2">
+          <h2 className="flex items-center gap-2 text-lg font-semibold text-neutral-900 dark:text-white">
             <Pin className="w-5 h-5 text-blue-600" />
             Pinned Notices
           </h2>
@@ -62,7 +62,7 @@ export function Notices() {
             <div
               key={notice.id}
               onClick={() => setSelectedNotice(notice)}
-              className="bg-blue-50 border-2 border-blue-200 rounded-2xl p-6 cursor-pointer hover:bg-blue-100 transition-colors"
+              className="p-6 transition-colors border-2 border-blue-200 cursor-pointer bg-blue-50 dark:bg-blue-800 rounded-2xl hover:bg-blue-100"
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
@@ -73,11 +73,11 @@ export function Notices() {
                     </span>
                   </div>
                   <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">{notice.title}</h3>
-                  <p className="text-sm text-neutral-700 dark:text-neutral-300 mt-2 line-clamp-2">{notice.content}</p>
-                  <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-3">{new Date(notice.date).toLocaleDateString()}</p>
+                  <p className="mt-2 text-sm text-neutral-700 dark:text-neutral-300 line-clamp-2">{notice.content}</p>
+                  <p className="mt-3 text-xs text-neutral-500 dark:text-neutral-400">{new Date(notice.date).toLocaleDateString()}</p>
                 </div>
                 {!notice.isRead && (
-                  <div className="w-3 h-3 bg-blue-600 rounded-full flex-shrink-0"></div>
+                  <div className="flex-shrink-0 w-3 h-3 bg-blue-600 rounded-full"></div>
                 )}
               </div>
             </div>
@@ -106,7 +106,7 @@ export function Notices() {
                   </span>
                 </div>
                 <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">{notice.title}</h3>
-                <p className="text-sm text-neutral-700 dark:text-neutral-300 mt-2 line-clamp-2">{notice.content}</p>
+                <p className="mt-2 text-sm text-neutral-700 dark:text-neutral-300 line-clamp-2">{notice.content}</p>
                 <div className="flex items-center gap-4 mt-3">
                   <p className="text-xs text-neutral-500 dark:text-neutral-400">{new Date(notice.date).toLocaleDateString()}</p>
                   {notice.attachments && notice.attachments.length > 0 && (
@@ -118,7 +118,7 @@ export function Notices() {
                 </div>
               </div>
               {!notice.isRead && (
-                <div className="w-3 h-3 bg-blue-600 rounded-full flex-shrink-0"></div>
+                <div className="flex-shrink-0 w-3 h-3 bg-blue-600 rounded-full"></div>
               )}
             </div>
           </div>
@@ -127,7 +127,7 @@ export function Notices() {
 
       {/* Notice Detail Modal */}
       {selectedNotice && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
           <div className="bg-white rounded-2xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-start justify-between mb-4">
               <div className="flex-1">
@@ -138,31 +138,31 @@ export function Notices() {
                   </span>
                 </div>
                 <h2 className="text-2xl font-semibold text-neutral-900 dark:text-white">{selectedNotice.title}</h2>
-                <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-2">{new Date(selectedNotice.date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-400">{new Date(selectedNotice.date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
               </div>
               <button 
                 onClick={() => setSelectedNotice(null)}
-                className="p-2 hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded-lg transition-colors flex-shrink-0"
+                className="flex-shrink-0 p-2 transition-colors rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="prose prose-sm max-w-none">
-              <p className="text-neutral-700 dark:text-neutral-300 leading-relaxed">{selectedNotice.content}</p>
+            <div className="prose-sm prose max-w-none">
+              <p className="leading-relaxed text-neutral-700 dark:text-neutral-300">{selectedNotice.content}</p>
             </div>
 
             {selectedNotice.attachments && selectedNotice.attachments.length > 0 && (
-              <div className="mt-6 pt-6 border-t border-neutral-200 dark:border-neutral-700">
-                <h3 className="font-semibold text-neutral-900 dark:text-white mb-3">Attachments</h3>
+              <div className="pt-6 mt-6 border-t border-neutral-200 dark:border-neutral-700">
+                <h3 className="mb-3 font-semibold text-neutral-900 dark:text-white">Attachments</h3>
                 <div className="space-y-2">
                   {selectedNotice.attachments.map((attachment: string, index: number) => (
-                    <div key={index} className="flex items-center justify-between p-3 bg-neutral-50 dark:bg-neutral-700 rounded-lg">
+                    <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-neutral-50 dark:bg-neutral-700">
                       <div className="flex items-center gap-3">
                         <FileText className="w-5 h-5 text-neutral-600 dark:text-neutral-500" />
                         <span className="text-sm text-neutral-700 dark:text-neutral-300">Attachment {index + 1}</span>
                       </div>
-                      <button className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+                      <button className="text-sm font-medium text-blue-600 hover:text-blue-700">
                         Download
                       </button>
                     </div>
@@ -171,10 +171,10 @@ export function Notices() {
               </div>
             )}
 
-            <div className="mt-6 pt-6 border-t border-neutral-200 dark:border-neutral-700">
+            <div className="pt-6 mt-6 border-t border-neutral-200 dark:border-neutral-700">
               <button
                 onClick={() => setSelectedNotice(null)}
-                className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                className="w-full px-4 py-3 font-medium text-white transition-colors bg-blue-600 rounded-lg hover:bg-blue-700"
               >
                 Close
               </button>
