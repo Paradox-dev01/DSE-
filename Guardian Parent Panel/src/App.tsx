@@ -13,12 +13,27 @@ import { BottomNav } from './components/BottomNav';
 import { mockChildren } from './data/mockData';
 import { ThemeProvider } from './contexts/ThemeContext';
 import GuardianProfilePage from './components/ProfilePage';
+import Login from "./components/Login";
+import { useAuth } from "./hooks/useAuth";
+import ProtectedRoute from "./components/ProtectedRoute";
+import { useEffect } from "react";
 
 export type NavigationItem = 'dashboard' | 'academics' | 'attendance' | 'fees' | 'notices' | 'messages' | 'events' | 'settings' | 'profile';
 
 export default function App() {
+  const { user } = useAuth(); // AUTH STATE CHECK
+
   const [currentView, setCurrentView] = useState<NavigationItem>('dashboard');
   const [selectedChildId, setSelectedChildId] = useState(mockChildren[0].id);
+
+  // 🔴 1. IF NOT LOGGED IN → SHOW LOGIN ONLY
+  if (!user) {
+    return (
+      <ThemeProvider>
+        <Login />
+      </ThemeProvider>
+    );
+  }
 
   const selectedChild = mockChildren.find(child => child.id === selectedChildId) || mockChildren[0];
 
@@ -47,36 +62,37 @@ export default function App() {
     }
   };
 
+  // 🟢 2. IF LOGGED IN → FULL APP
   return (
     <ThemeProvider>
-      <div className="min-h-screen bg-neutral-50 dark:bg-neutral-900">
-        <TopBar
-          selectedChild={selectedChild}
-          onChildChange={setSelectedChildId}
-          onNavigate={setCurrentView}
-        />
+      <ProtectedRoute>
+        <div className="min-h-screen bg-neutral-50 dark:bg-neutral-900">
 
-        <div className="flex pt-16">
-          {/* Desktop Sidebar */}
-          <Sidebar
-            currentView={currentView}
+          <TopBar
+            selectedChild={selectedChild}
+            onChildChange={setSelectedChildId}
             onNavigate={setCurrentView}
           />
 
-          {/* Main Content */}
-          <main className="flex-1 p-4 pb-20 md:p-6 lg:p-8 md:pb-8 md:ml-64">
-            <div className="mx-auto max-w-7xl">
-              {renderContent()}
-            </div>
-          </main>
-        </div>
+          <div className="flex pt-16">
+            <Sidebar
+              currentView={currentView}
+              onNavigate={setCurrentView}
+            />
 
-        {/* Mobile Bottom Navigation */}
-        <BottomNav
-          currentView={currentView}
-          onNavigate={setCurrentView}
-        />
-      </div>
+            <main className="flex-1 p-4 pb-20 md:p-6 lg:p-8 md:pb-8 md:ml-64">
+              <div className="mx-auto max-w-7xl">
+                {renderContent()}
+              </div>
+            </main>
+          </div>
+
+          <BottomNav
+            currentView={currentView}
+            onNavigate={setCurrentView}
+          />
+        </div>
+      </ProtectedRoute>
     </ThemeProvider>
   );
 }
