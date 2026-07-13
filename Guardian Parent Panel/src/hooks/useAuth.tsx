@@ -1,96 +1,163 @@
-import { createContext, useContext, useState, useEffect } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
+import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabaseClient";
 
-type Guardian = {
-    id: string;
-    guardian_code: string;
-    full_name: string;
-    email?: string;
+export type Guardian = {
+  id: string;
+  guardian_code: string;
+  full_name: string;
+  email?: string;
 };
 
 type AuthContextType = {
-    user: Guardian | null;
-    loading: boolean;
-    login: (guardian_code: string, password: string) => Promise<boolean>;
-    logout: () => void;
+  user: Guardian | null;
+  session: Session | null;
+  loading: boolean;
+  login: (guardian_code: string, password: string) => Promise<boolean>;
+  logout: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-    const [user, setUser] = useState<Guardian | null>(null);
-    const [loading, setLoading] = useState(true);
+async function fetchGuardianProfile(
+  authUser: User
+): Promise<Guardian | null> {
+  if (!authUser.email) {
+    return null;
+  }
 
-    // 🔵 STEP 1: restore session on refresh
-    useEffect(() => {
-        const saved = localStorage.getItem("guardian_session");
+  const { data, error } = await supabase
+    .from("guardians")
+    .select("id, guardian_code, full_name, email")
+    .eq("email", authUser.email)
+    .single();
 
-        if (saved) {
-            try {
-                setUser(JSON.parse(saved));
-            } catch (err) {
-                localStorage.removeItem("guardian_session");
-            }
-        }
+  if (error || !data) {
+    return null;
+  }
 
-        setLoading(false); // ✅ IMPORTANT: release UI after check
-    }, []);
-
-    // 🔵 STEP 2: LOGIN FUNCTION (core logic)
-    const login = async (guardian_code: string, password: string) => {
-        setLoading(true);
-
-        // 1. fetch guardian from DB
-        const { data, error } = await supabase
-            .from("guardians")
-            .select("*")
-            .eq("guardian_code", guardian_code)
-            .single();
-
-        setLoading(false);
-
-        // 2. validation checks
-        if (error || !data) {
-            return false;
-        }
-
-        // 3. password check (TEMPORARY plain text system)
-        if (data.password !== password) {
-            return false;
-        }
-
-        // 4. create session user object
-        const sessionUser = {
-            id: data.id,
-            guardian_code: data.guardian_code,
-            full_name: data.full_name,
-            email: data.email,
-        };
-
-        // 5. store session
-        setUser(sessionUser);
-        localStorage.setItem("guardian_session", JSON.stringify(sessionUser));
-
-        return true;
-    };
-
-    // 🔵 logout
-    const logout = () => {
-        setUser(null);
-        localStorage.removeItem("guardian_session");
-    };
-
-    return (
-        <AuthContext.Provider value={{ user, loading, login, logout }
-        }>
-            {children}
-        </AuthContext.Provider>
-    );
+  return data;
 }
 
-// hook
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<Guardian | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const syncAuthState = useCallback(async (nextSession: Session | null) => {
+    setSession(nextSession);
+
+    if (!nextSession?.user) {
+      setUser(null);
+      return;
+    }
+
+    const guardian = await fetchGuardianProfile(nextSession.user);
+    setUser(guardian);
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const initializeAuth = async () => {
+      const {
+        data: { session: initialSession },
+      } = await supabase.auth.getSession();
+
+      if (!isMounted) {
+        return;
+      }
+
+      await syncAuthState(initialSession);
+      setLoading(false);
+    };
+
+    initializeAuth();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (_event, nextSession) => {
+      if (!isMounted) {
+        return;
+      }
+
+      await syncAuthState(nextSession);
+      setLoading(false);
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, [syncAuthState]);
+
+  const login = async (
+    guardian_code: string,
+    password: string
+  ): Promise<boolean> => {
+    setLoading(true);
+
+    try {
+      const { data: guardian, error: guardianError } = await supabase
+        .from("guardians")
+        .select("id, guardian_code, full_name, email")
+        .eq("guardian_code", guardian_code)
+        .single();
+
+      if (guardianError || !guardian?.email) {
+        return false;
+      }
+
+      const { data: authData, error: authError } =
+        await supabase.auth.signInWithPassword({
+          email: guardian.email,
+          password,
+        });
+
+      if (authError || !authData.session || !authData.user) {
+        return false;
+      }
+
+      await syncAuthState(authData.session);
+      return true;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const logout = async () => {
+    setLoading(true);
+
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        throw error;
+      }
+
+      setSession(null);
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <AuthContext.Provider value={{ user, session, loading, login, logout }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
 export const useAuth = () => {
-    const context = useContext(AuthContext);
-    if (!context) throw new Error("useAuth must be used inside AuthProvider");
-    return context;
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error("useAuth must be used inside AuthProvider");
+  }
+  return context;
 };

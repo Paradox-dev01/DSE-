@@ -1,8 +1,10 @@
 import { Bell, ChevronDown, User, Moon, Sun } from 'lucide-react';
 import { mockChildren, mockMessages, type Child } from '../data/mockData';
 import { useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { useClickOutside } from '../hooks/useClickOutside';
+import { useAuth } from '../hooks/useAuth';
 import type { NavigationItem } from '../App';
 import { mockNotices } from '../data/mockData';
 
@@ -16,6 +18,8 @@ export function TopBar({ selectedChild, onChildChange, onNavigate }: TopBarProps
   const [showChildDropdown, setShowChildDropdown] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const { theme, toggleTheme } = useTheme();
+  const { logout } = useAuth();
+  const navigate = useNavigate();
 
   const [showNotifications, setShowNotifications] = useState(false);
   const unreadNotices = mockNotices.filter(n => !n.isRead);
@@ -187,6 +191,11 @@ export function TopBar({ selectedChild, onChildChange, onNavigate }: TopBarProps
                 </button>
                 <hr className="my-2 border-neutral-200 dark:border-neutral-700" />
                 <button
+                  onClick={async () => {
+                    setShowProfileMenu(false);
+                    await logout();
+                    navigate('/login', { replace: true });
+                  }}
                   className="w-full px-4 py-2 text-sm text-left text-red-600 hover:bg-neutral-50 dark:hover:bg-neutral-700">
                   Logout
                 </button>

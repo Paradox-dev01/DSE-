@@ -1,67 +1,80 @@
 import { useState } from "react";
+import { Navigate } from "react-router-dom";
 import AuthLayout from "./AuthLayout";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 
 export default function Login() {
-    const navigate = useNavigate();
-    const { login, loading } = useAuth();
+  const navigate = useNavigate();
+  const { login, loading, user } = useAuth();
 
-    const [guardianCode, setGuardianCode] = useState("");
-    const [password, setPassword] = useState("");
-    const [error, setError] = useState("");
+  const [guardianCode, setGuardianCode] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
 
-    const handleLogin = async () => {
-        setError("");
+  if (user) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
-        const success = await login(guardianCode, password);
+  const handleLogin = async () => {
+    setError("");
 
-        if (success) {
-            navigate("/dashboard"); // ✅ your confirmed route
-        } else {
-            setError("Invalid Guardian ID or Password");
-        }
-    };
+    if (!guardianCode.trim() || !password) {
+      setError("Please enter your Guardian ID and password.");
+      return;
+    }
 
-    return (
-        <AuthLayout>
-            <div className="w-full max-w-md p-8 bg-white shadow-lg dark:bg-neutral-800 rounded-2xl">
+    const success = await login(guardianCode.trim(), password);
 
-                <h2 className="mb-6 text-2xl font-semibold text-neutral-900 dark:text-white">
-                    Guardian Login
-                </h2>
+    if (success) {
+      navigate("/dashboard", { replace: true });
+    } else {
+      setError("Invalid Guardian ID or Password");
+    }
+  };
 
-                {/* Guardian Code */}
-                <input
-                    className="w-full p-3 mb-3 border rounded-lg dark:bg-neutral-700"
-                    placeholder="Guardian ID"
-                    value={guardianCode}
-                    onChange={(e) => setGuardianCode(e.target.value)}
-                />
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === "Enter") {
+      handleLogin();
+    }
+  };
 
-                {/* Password */}
-                <input
-                    type="password"
-                    className="w-full p-3 mb-3 border rounded-lg dark:bg-neutral-700"
-                    placeholder="Password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                />
+  return (
+    <AuthLayout>
+      <div className="w-full max-w-md p-8 bg-white shadow-lg dark:bg-neutral-800 rounded-2xl">
+        <h2 className="mb-6 text-2xl font-semibold text-neutral-900 dark:text-white">
+          Guardian Login
+        </h2>
 
-                {/* Error */}
-                {error && (
-                    <p className="mb-2 text-sm text-red-500">{error}</p>
-                )}
+        <input
+          className="w-full p-3 mb-3 border rounded-lg dark:bg-neutral-700"
+          placeholder="Guardian ID"
+          value={guardianCode}
+          onChange={(e) => setGuardianCode(e.target.value)}
+          onKeyDown={handleKeyDown}
+          autoComplete="username"
+        />
 
-                {/* Button */}
-                <button
-                    onClick={handleLogin}
-                    disabled={loading}
-                    className="w-full p-3 text-white bg-blue-600 rounded-lg hover:bg-blue-700"
-                >
-                    {loading ? "Logging in..." : "Login"}
-                </button>
-            </div>
-        </AuthLayout>
-    );
+        <input
+          type="password"
+          className="w-full p-3 mb-3 border rounded-lg dark:bg-neutral-700"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          onKeyDown={handleKeyDown}
+          autoComplete="current-password"
+        />
+
+        {error && <p className="mb-2 text-sm text-red-500">{error}</p>}
+
+        <button
+          onClick={handleLogin}
+          disabled={loading}
+          className="w-full p-3 text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          {loading ? "Logging in..." : "Login"}
+        </button>
+      </div>
+    </AuthLayout>
+  );
 }
