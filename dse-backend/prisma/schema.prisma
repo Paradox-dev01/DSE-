@@ -1,0 +1,450 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model academic_years {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  year_name  String
+  start_date DateTime  @db.Date
+  end_date   DateTime  @db.Date
+  classes    classes[]
+}
+
+model achievement_types {
+  id           String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name         String         @unique
+  description  String?
+  achievements achievements[]
+}
+
+model achievements {
+  id                String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  student_id        String            @db.Uuid
+  type_id           String            @db.Uuid
+  title             String
+  description       String?
+  achieved_date     DateTime?         @db.Date
+  students          students          @relation(fields: [student_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  achievement_types achievement_types @relation(fields: [type_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model admins {
+  id         String    @id @db.Uuid
+  full_name  String
+  created_at DateTime? @default(now()) @db.Timestamp(6)
+  updated_at DateTime? @default(now()) @db.Timestamp(6)
+  users      users     @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model alerts {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  student_id String    @db.Uuid
+  issue_type String
+  details    String?
+  created_at DateTime? @default(now()) @db.Timestamp(6)
+  students   students  @relation(fields: [student_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model announcements {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title       String
+  message     String
+  target_role String?
+  created_by  String?   @db.Uuid
+  created_at  DateTime? @default(now()) @db.Timestamp(6)
+  users       users?    @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model attendance_records {
+  id                  String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  session_id          String              @db.Uuid
+  student_id          String              @db.Uuid
+  status              String
+  remark              String?
+  attendance_sessions attendance_sessions @relation(fields: [session_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  students            students            @relation(fields: [student_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([session_id, student_id])
+}
+
+model attendance_sessions {
+  id                 String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  class_schedule_id  String               @db.Uuid
+  session_date       DateTime             @db.Date
+  created_by         String               @db.Uuid
+  attendance_records attendance_records[]
+  class_schedules    class_schedules      @relation(fields: [class_schedule_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  teachers           teachers             @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([class_schedule_id, session_date])
+  @@index([class_schedule_id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model class_schedules {
+  id                  String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  class_subject_id    String                @db.Uuid
+  day_of_week         String
+  period_number       Int
+  start_time          DateTime              @db.Time(6)
+  end_time            DateTime              @db.Time(6)
+  room_number         String?
+  attendance_sessions attendance_sessions[]
+  class_subjects      class_subjects        @relation(fields: [class_subject_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([class_subject_id, day_of_week, period_number])
+}
+
+model class_subjects {
+  id              String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  class_id        String            @db.Uuid
+  subject_id      String            @db.Uuid
+  teacher_id      String            @db.Uuid
+  class_schedules class_schedules[]
+  classes         classes           @relation(fields: [class_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  subjects        subjects          @relation(fields: [subject_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  teachers        teachers          @relation(fields: [teacher_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  exams           exams[]
+  homeworks       homeworks[]
+  resources       resources[]
+
+  @@unique([class_id, subject_id])
+  @@index([teacher_id])
+}
+
+model classes {
+  id               String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  grade            String
+  section          String
+  academic_year_id String           @db.Uuid
+  class_subjects   class_subjects[]
+  academic_years   academic_years   @relation(fields: [academic_year_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  students         students[]
+
+  @@unique([grade, section, academic_year_id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model event_participation {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  event_id    String    @db.Uuid
+  student_id  String    @db.Uuid
+  guardian_id String    @db.Uuid
+  status      String?
+  events      events    @relation(fields: [event_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  guardians   guardians @relation(fields: [guardian_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  students    students  @relation(fields: [student_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([event_id, student_id])
+}
+
+model events {
+  id                  String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title               String
+  description         String?
+  category            String?
+  event_date          DateTime              @db.Timestamp(6)
+  requires_approval   Boolean?
+  created_by          String?               @db.Uuid
+  created_at          DateTime?             @default(now()) @db.Timestamp(6)
+  event_participation event_participation[]
+  users               users?                @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model exams {
+  id               String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  class_subject_id String         @db.Uuid
+  title            String
+  exam_type        String
+  term             String
+  exam_date        DateTime       @db.Date
+  start_time       DateTime?      @db.Time(6)
+  end_time         DateTime?      @db.Time(6)
+  total_marks      Int?
+  class_subjects   class_subjects @relation(fields: [class_subject_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  results          results[]
+}
+
+model fee_categories {
+  id   String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name String @unique
+  fees fees[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model fees {
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  student_id     String         @db.Uuid
+  category_id    String         @db.Uuid
+  amount         Decimal        @db.Decimal
+  due_date       DateTime?      @db.Date
+  status         String?
+  fee_categories fee_categories @relation(fields: [category_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  students       students       @relation(fields: [student_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  payments       payments[]
+}
+
+model guardians {
+  id                  String                @id @db.Uuid
+  guardian_code       String                @unique
+  full_name           String
+  phone               String?
+  email               String?
+  address             String?
+  created_at          DateTime?             @default(now()) @db.Timestamp(6)
+  updated_at          DateTime?             @default(now()) @db.Timestamp(6)
+  event_participation event_participation[]
+  users               users                 @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  students            students[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model homework_submissions {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  homework_id    String    @db.Uuid
+  student_id     String    @db.Uuid
+  file_url       String?
+  submitted_at   DateTime? @db.Timestamp(6)
+  marks_obtained Int?
+  feedback       String?
+  status         String?
+  homeworks      homeworks @relation(fields: [homework_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  students       students  @relation(fields: [student_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([homework_id, student_id])
+}
+
+model homeworks {
+  id                   String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  class_subject_id     String                 @db.Uuid
+  title                String
+  description          String?
+  due_date             DateTime               @db.Timestamp(6)
+  total_marks          Int?
+  created_by           String                 @db.Uuid
+  created_at           DateTime?              @default(now()) @db.Timestamp(6)
+  homework_submissions homework_submissions[]
+  class_subjects       class_subjects         @relation(fields: [class_subject_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  teachers             teachers               @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model leave_requests {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id    String   @db.Uuid
+  leave_type String
+  start_date DateTime @db.Date
+  end_date   DateTime @db.Date
+  reason     String?
+  status     String?
+  users      users    @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model message_group_members {
+  id             String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  group_id       String?         @db.Uuid
+  user_id        String?         @db.Uuid
+  message_groups message_groups? @relation(fields: [group_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users          users?          @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([group_id, user_id])
+}
+
+model message_groups {
+  id                    String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  group_name            String
+  group_type            String?
+  created_by            String?                 @db.Uuid
+  message_group_members message_group_members[]
+  users                 users?                  @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  messages              messages[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model messages {
+  id                                String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sender_id                         String          @db.Uuid
+  group_id                          String?         @db.Uuid
+  receiver_id                       String?         @db.Uuid
+  content                           String?
+  file_url                          String?
+  created_at                        DateTime?       @default(now()) @db.Timestamp(6)
+  message_groups                    message_groups? @relation(fields: [group_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users_messages_receiver_idTousers users?          @relation("messages_receiver_idTousers", fields: [receiver_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users_messages_sender_idTousers   users           @relation("messages_sender_idTousers", fields: [sender_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model notifications {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id     String    @db.Uuid
+  title       String
+  description String?
+  type        String?
+  is_read     Boolean?  @default(false)
+  created_at  DateTime? @default(now()) @db.Timestamp(6)
+  users       users     @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model payments {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  fee_id         String    @db.Uuid
+  amount_paid    Decimal   @db.Decimal
+  payment_date   DateTime? @db.Timestamp(6)
+  payment_method String?
+  transaction_id String?
+  fees           fees      @relation(fields: [fee_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model planner_events {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id     String   @db.Uuid
+  title       String
+  description String?
+  event_date  DateTime @db.Timestamp(6)
+  category    String?
+  users       users    @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model resources {
+  id               String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  class_subject_id String         @db.Uuid
+  teacher_id       String         @db.Uuid
+  title            String
+  file_url         String?
+  file_type        String?
+  file_size        Int?
+  visibility       String?
+  uploaded_at      DateTime?      @default(now()) @db.Timestamp(6)
+  class_subjects   class_subjects @relation(fields: [class_subject_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  teachers         teachers       @relation(fields: [teacher_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model results {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  exam_id        String    @db.Uuid
+  student_id     String    @db.Uuid
+  marks_obtained Int
+  percentage     Decimal?  @db.Decimal
+  grade          String?
+  remarks        String?
+  entered_by     String?   @db.Uuid
+  entered_at     DateTime? @default(now()) @db.Timestamp(6)
+  teachers       teachers? @relation(fields: [entered_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  exams          exams     @relation(fields: [exam_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  students       students  @relation(fields: [student_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([exam_id, student_id])
+}
+
+model staff {
+  id               String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  full_name        String
+  designation      String?
+  department       String?
+  email            String?
+  phone            String?
+  experience_years Int?
+}
+
+model students {
+  id                   String                 @id @db.Uuid
+  guardian_id          String                 @db.Uuid
+  class_id             String                 @db.Uuid
+  student_code         String?                @unique
+  full_name            String
+  roll_number          Int
+  date_of_birth        DateTime?              @db.Date
+  gender               String?
+  admission_date       DateTime?              @db.Date
+  phone                String?
+  address              String?
+  created_at           DateTime?              @default(now()) @db.Timestamp(6)
+  updated_at           DateTime?              @default(now()) @db.Timestamp(6)
+  avatar_url           String?
+  email                String?
+  blood_group          String?
+  house                String?
+  guardian_email       String?
+  guardian_phone       String?
+  guardian_name        String?
+  performance          Json?
+  attendance           Json?
+  achievements         achievements[]
+  alerts               alerts[]
+  attendance_records   attendance_records[]
+  event_participation  event_participation[]
+  fees                 fees[]
+  homework_submissions homework_submissions[]
+  results              results[]
+  classes              classes                @relation(fields: [class_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  guardians            guardians              @relation(fields: [guardian_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users                users                  @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([class_id, roll_number])
+  @@index([guardian_id])
+}
+
+model subjects {
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String           @unique
+  class_subjects class_subjects[]
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model teachers {
+  id                  String                @id @db.Uuid
+  employee_id         String?               @unique
+  full_name           String
+  phone               String?
+  qualification       String?
+  specialization      String?
+  joining_date        DateTime?             @db.Date
+  created_at          DateTime?             @default(now()) @db.Timestamp(6)
+  updated_at          DateTime?             @default(now()) @db.Timestamp(6)
+  address             String?
+  bio                 String?
+  attendance_sessions attendance_sessions[]
+  class_subjects      class_subjects[]
+  homeworks           homeworks[]
+  resources           resources[]
+  results             results[]
+  users               users                 @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model users {
+  id                                   String                  @id @db.Uuid
+  role                                 String
+  avatar_url                           String?
+  created_at                           DateTime?               @default(now()) @db.Timestamp(6)
+  updated_at                           DateTime?               @default(now()) @db.Timestamp(6)
+  login_id                             String                  @unique
+  email                                String?
+  password_hash                        String?
+  must_change_password                 Boolean                 @default(true)
+  admins                               admins?
+  announcements                        announcements[]
+  events                               events[]
+  guardians                            guardians?
+  leave_requests                       leave_requests[]
+  message_group_members                message_group_members[]
+  message_groups                       message_groups[]
+  messages_messages_receiver_idTousers messages[]              @relation("messages_receiver_idTousers")
+  messages_messages_sender_idTousers   messages[]              @relation("messages_sender_idTousers")
+  notifications                        notifications[]
+  planner_events                       planner_events[]
+  students                             students?
+  teachers                             teachers?
+}
