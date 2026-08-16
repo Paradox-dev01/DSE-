@@ -9,6 +9,7 @@ datasource db {
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model academic_years {
   id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   year_name  String
@@ -17,6 +18,7 @@ model academic_years {
   classes    classes[]
 }
 
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model achievement_types {
   id           String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name         String         @unique
@@ -24,6 +26,7 @@ model achievement_types {
   achievements achievements[]
 }
 
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model achievements {
   id                String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   student_id        String            @db.Uuid
@@ -35,6 +38,7 @@ model achievements {
   achievement_types achievement_types @relation(fields: [type_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model admins {
   id         String    @id @db.Uuid
   full_name  String
@@ -43,6 +47,7 @@ model admins {
   users      users     @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model alerts {
   id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   student_id String    @db.Uuid
@@ -52,17 +57,43 @@ model alerts {
   students   students  @relation(fields: [student_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model announcement_reads {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  announcement_id String        @db.Uuid
+  user_id         String        @db.Uuid
+  read_at         DateTime?     @db.Timestamp(6)
+  announcements   announcements @relation(fields: [announcement_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users           users         @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([announcement_id, user_id])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model announcement_targets {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  announcement_id String        @db.Uuid
+  target_role     String
+  announcements   announcements @relation(fields: [announcement_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([announcement_id, target_role])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model announcements {
-  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  title       String
-  message     String
-  target_role String?
-  created_by  String?   @db.Uuid
-  created_at  DateTime? @default(now()) @db.Timestamp(6)
-  users       users?    @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id                   String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title                String
+  message              String
+  created_by           String?                @db.Uuid
+  created_at           DateTime?              @default(now()) @db.Timestamp(6)
+  is_pinned            Boolean?               @default(false)
+  announcement_reads   announcement_reads[]
+  announcement_targets announcement_targets[]
+  users                users?                 @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model attendance_records {
   id                  String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   session_id          String              @db.Uuid
@@ -75,6 +106,7 @@ model attendance_records {
   @@unique([session_id, student_id])
 }
 
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model attendance_sessions {
   id                 String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   class_schedule_id  String               @db.Uuid
@@ -89,6 +121,7 @@ model attendance_sessions {
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model class_schedules {
   id                  String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   class_subject_id    String                @db.Uuid
@@ -103,6 +136,7 @@ model class_schedules {
   @@unique([class_subject_id, day_of_week, period_number])
 }
 
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model class_subjects {
   id              String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   class_id        String            @db.Uuid
@@ -120,6 +154,7 @@ model class_subjects {
   @@index([teacher_id])
 }
 
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model classes {
   id               String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   grade            String
@@ -133,6 +168,7 @@ model classes {
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model event_participation {
   id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   event_id    String    @db.Uuid
@@ -146,6 +182,7 @@ model event_participation {
   @@unique([event_id, student_id])
 }
 
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model events {
   id                  String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   title               String
@@ -160,6 +197,7 @@ model events {
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model exams {
   id               String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   class_subject_id String         @db.Uuid
@@ -174,6 +212,7 @@ model exams {
   results          results[]
 }
 
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model fee_categories {
   id   String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name String @unique
@@ -181,6 +220,7 @@ model fee_categories {
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model fees {
   id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   student_id     String         @db.Uuid
@@ -193,6 +233,7 @@ model fees {
   payments       payments[]
 }
 
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model guardians {
   id                  String                @id @db.Uuid
   guardian_code       String                @unique
@@ -203,11 +244,12 @@ model guardians {
   created_at          DateTime?             @default(now()) @db.Timestamp(6)
   updated_at          DateTime?             @default(now()) @db.Timestamp(6)
   event_participation event_participation[]
-  users               users                 @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users               users                 @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_guardians_users")
   students            students[]
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model homework_submissions {
   id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   homework_id    String    @db.Uuid
@@ -217,12 +259,13 @@ model homework_submissions {
   marks_obtained Int?
   feedback       String?
   status         String?
-  homeworks      homeworks @relation(fields: [homework_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  students       students  @relation(fields: [student_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  homeworks      homeworks @relation(fields: [homework_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_hwsub_hw")
+  students       students  @relation(fields: [student_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_hwsub_student")
 
   @@unique([homework_id, student_id])
 }
 
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model homeworks {
   id                   String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   class_subject_id     String                 @db.Uuid
@@ -233,11 +276,12 @@ model homeworks {
   created_by           String                 @db.Uuid
   created_at           DateTime?              @default(now()) @db.Timestamp(6)
   homework_submissions homework_submissions[]
-  class_subjects       class_subjects         @relation(fields: [class_subject_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  class_subjects       class_subjects         @relation(fields: [class_subject_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_hw_cs")
   teachers             teachers               @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model leave_requests {
   id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   user_id    String   @db.Uuid
@@ -246,30 +290,33 @@ model leave_requests {
   end_date   DateTime @db.Date
   reason     String?
   status     String?
-  users      users    @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users      users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_leave_user")
 }
 
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model message_group_members {
   id             String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   group_id       String?         @db.Uuid
   user_id        String?         @db.Uuid
-  message_groups message_groups? @relation(fields: [group_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  users          users?          @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  message_groups message_groups? @relation(fields: [group_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_mgm_group")
+  users          users?          @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_mgm_user")
 
   @@unique([group_id, user_id])
 }
 
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model message_groups {
   id                    String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   group_name            String
   group_type            String?
   created_by            String?                 @db.Uuid
   message_group_members message_group_members[]
-  users                 users?                  @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users                 users?                  @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_mg_creator")
   messages              messages[]
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model messages {
   id                                String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   sender_id                         String          @db.Uuid
@@ -278,12 +325,14 @@ model messages {
   content                           String?
   file_url                          String?
   created_at                        DateTime?       @default(now()) @db.Timestamp(6)
-  message_groups                    message_groups? @relation(fields: [group_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  users_messages_receiver_idTousers users?          @relation("messages_receiver_idTousers", fields: [receiver_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  users_messages_sender_idTousers   users           @relation("messages_sender_idTousers", fields: [sender_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  is_read                           Boolean?        @default(false)
+  message_groups                    message_groups? @relation(fields: [group_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_msg_group")
+  users_messages_receiver_idTousers users?          @relation("messages_receiver_idTousers", fields: [receiver_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_msg_receiver")
+  users_messages_sender_idTousers   users           @relation("messages_sender_idTousers", fields: [sender_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_msg_sender")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model notifications {
   id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   user_id     String    @db.Uuid
@@ -292,9 +341,10 @@ model notifications {
   type        String?
   is_read     Boolean?  @default(false)
   created_at  DateTime? @default(now()) @db.Timestamp(6)
-  users       users     @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users       users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_notif_user")
 }
 
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model payments {
   id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   fee_id         String    @db.Uuid
@@ -302,9 +352,10 @@ model payments {
   payment_date   DateTime? @db.Timestamp(6)
   payment_method String?
   transaction_id String?
-  fees           fees      @relation(fields: [fee_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  fees           fees      @relation(fields: [fee_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_pay_fee")
 }
 
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model planner_events {
   id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   user_id     String   @db.Uuid
@@ -312,10 +363,11 @@ model planner_events {
   description String?
   event_date  DateTime @db.Timestamp(6)
   category    String?
-  users       users    @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users       users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_planner_user")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model resources {
   id               String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   class_subject_id String         @db.Uuid
@@ -326,11 +378,12 @@ model resources {
   file_size        Int?
   visibility       String?
   uploaded_at      DateTime?      @default(now()) @db.Timestamp(6)
-  class_subjects   class_subjects @relation(fields: [class_subject_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  teachers         teachers       @relation(fields: [teacher_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  class_subjects   class_subjects @relation(fields: [class_subject_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_res_cs")
+  teachers         teachers       @relation(fields: [teacher_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_res_teacher")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model results {
   id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   exam_id        String    @db.Uuid
@@ -341,13 +394,14 @@ model results {
   remarks        String?
   entered_by     String?   @db.Uuid
   entered_at     DateTime? @default(now()) @db.Timestamp(6)
+  exams          exams     @relation(fields: [exam_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_results_exam")
+  students       students  @relation(fields: [student_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_results_student")
   teachers       teachers? @relation(fields: [entered_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  exams          exams     @relation(fields: [exam_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  students       students  @relation(fields: [student_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@unique([exam_id, student_id])
 }
 
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model staff {
   id               String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   full_name        String
@@ -358,6 +412,7 @@ model staff {
   experience_years Int?
 }
 
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model students {
   id                   String                 @id @db.Uuid
   guardian_id          String                 @db.Uuid
@@ -388,14 +443,15 @@ model students {
   fees                 fees[]
   homework_submissions homework_submissions[]
   results              results[]
-  classes              classes                @relation(fields: [class_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  guardians            guardians              @relation(fields: [guardian_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  classes              classes                @relation(fields: [class_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_students_class")
+  guardians            guardians              @relation(fields: [guardian_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_students_guardian")
   users                users                  @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([class_id, roll_number])
   @@index([guardian_id])
 }
 
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model subjects {
   id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name           String           @unique
@@ -420,10 +476,11 @@ model teachers {
   homeworks           homeworks[]
   resources           resources[]
   results             results[]
-  users               users                 @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users               users                 @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_teachers_users")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model users {
   id                                   String                  @id @db.Uuid
   role                                 String
@@ -435,6 +492,7 @@ model users {
   password_hash                        String?
   must_change_password                 Boolean                 @default(true)
   admins                               admins?
+  announcement_reads                   announcement_reads[]
   announcements                        announcements[]
   events                               events[]
   guardians                            guardians?
