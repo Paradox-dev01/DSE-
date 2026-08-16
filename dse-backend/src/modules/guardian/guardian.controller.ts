@@ -201,3 +201,225 @@ export async function getDashboard(req: Request, res: Response) {
     res.status(500).json({ error: 'Failed to fetch dashboard' });
   }
 }
+
+
+
+// ---------- ACADEMICS: SUBJECTS ----------
+export async function getSubjects(req: Request, res: Response) {
+  try {
+    const guardianId = req.user!.id;
+    const childId = String(req.params.childId);
+    const student = await verifyChildOwnership(guardianId, childId);
+    if (!student) return res.status(404).json({ error: 'Child not found' });
+
+    const classSubjects = await prisma.class_subjects.findMany({
+      where: { class_id: student.class_id },
+      include: { subjects: true, teachers: true },
+    });
+
+    const subjects = classSubjects.map((cs) => {
+      const teacher = cs.teachers;
+      return {
+        id: cs.id,
+        name: cs.subjects?.name ?? '',
+        teacher: teacher?.full_name ?? '',
+        email: '', // users.email not linked yet — see note below
+        phone: teacher?.phone ?? '',
+        avatar: '',
+      };
+    });
+
+    res.json({ subjects });
+  } catch (err) {
+    console.error('getSubjects error:', err);
+    res.status(500).json({ error: 'Failed to fetch subjects' });
+  }
+}
+
+// ---------- ACADEMICS: HOMEWORK (full list) ----------
+export async function getHomeworkList(req: Request, res: Response) {
+  try {
+    const guardianId = req.user!.id;
+    const childId = String(req.params.childId);
+    const student = await verifyChildOwnership(guardianId, childId);
+    if (!student) return res.status(404).json({ error: 'Child not found' });
+
+    const classSubjects = await prisma.class_subjects.findMany({
+      where: { class_id: student.class_id },
+      include: { subjects: true },
+    });
+    const classSubjectIds = classSubjects.map((cs) => cs.id);
+    const subjectNameByCS = new Map<string, string>();
+    classSubjects.forEach((cs) => { subjectNameByCS.set(cs.id, cs.subjects?.name ?? ''); });
+
+    const homeworks = await prisma.homeworks.findMany({
+      where: { class_subject_id: { in: classSubjectIds } },
+      orderBy: { due_date: 'desc' },
+    });
+    const submissions = await prisma.homework_submissions.findMany({
+      where: { student_id: childId, homework_id: { in: homeworks.map((h) => h.id) } },
+    });
+    const submissionByHw = new Map(submissions.map((s) => [s.homework_id, s]));
+
+    const HW_STATUS_MAP: Record<string, 'submitted' | 'late'> = { submitted: 'submitted', late: 'late', graded: 'submitted' };
+
+    const homework = homeworks.map((h) => {
+      const sub = submissionByHw.get(h.id);
+      const status: 'pending' | 'submitted' | 'late' = sub ? (HW_STATUS_MAP[sub.status ?? ''] ?? 'submitted') : 'pending';
+      return {
+        id: h.id,
+        subject: subjectNameByCS.get(h.class_subject_id) ?? '',
+        title: h.title,
+        description: h.description ?? '',
+        dueDate: h.due_date.toISOString().split('T')[0],
+        status,
+      };
+    });
+
+    res.json({ homework });
+  } catch (err) {
+    console.error('getHomeworkList error:', err);
+    res.status(500).json({ error: 'Failed to fetch homework' });
+  }
+}
+
+// ---------- ACADEMICS: RESULTS ----------
+export async function getResults(req: Request, res: Response) {
+  try {
+    const guardianId = req.user!.id;
+    const childId = String(req.params.childId);
+    const student = await verifyChildOwnership(guardianId, childId);
+    if (!student) return res.status(404).json({ error: 'Child not found' });
+
+    const resultsRaw = await prisma.results.findMany({
+      where: { student_id: childId },
+      include: { exams: { include: { class_subjects: { include: { subjects: true } } } } },
+      orderBy: { exams: { exam_date: 'desc' } },
+    });
+
+    const results = resultsRaw.map((r) => ({
+      subject: r.exams?.class_subjects?.subjects?.name ?? '',
+      test: r.exams?.title ?? '',
+      score: r.marks_obtained,
+      totalMarks: r.exams?.total_marks ?? undefined,
+      grade: r.grade ?? '',
+      date: r.exams?.exam_date ? r.exams.exam_date.toISOString().split('T')[0] : '',
+    }));
+
+    res.json({ results });
+  } catch (err) {
+    console.error('getResults error:', err);
+    res.status(500).json({ error: 'Failed to fetch results' });
+  }
+}
+
+// ---------- ACADEMICS: STUDY MATERIALS ----------
+export async function getMaterials(req: Request, res: Response) {
+  try {
+    const guardianId = req.user!.id;
+    const childId = String(req.params.childId);
+    const student = await verifyChildOwnership(guardianId, childId);
+    if (!student) return res.status(404).json({ error: 'Child not found' });
+
+    const classSubjects = await prisma.class_subjects.findMany({
+      where: { class_id: student.class_id },
+      include: { subjects: true },
+    });
+    const classSubjectIds = classSubjects.map((cs) => cs.id);
+    const subjectNameByCS = new Map<string, string>();
+    classSubjects.forEach((cs) => { subjectNameByCS.set(cs.id, cs.subjects?.name ?? ''); });
+
+    const resources = await prisma.resources.findMany({
+      where: { class_subject_id: { in: classSubjectIds }, visibility: { in: ['class', 'public'] } },
+      orderBy: { uploaded_at: 'desc' },
+    });
+
+    const materials = resources.map((r) => ({
+      id: r.id,
+      subject: subjectNameByCS.get(r.class_subject_id) ?? '',
+      title: r.title,
+      type: (r.file_type ?? 'FILE').toUpperCase(),
+      date: r.uploaded_at ? r.uploaded_at.toISOString().split('T')[0] : '',
+      url: r.file_url ?? '',
+    }));
+
+    res.json({ materials });
+  } catch (err) {
+    console.error('getMaterials error:', err);
+    res.status(500).json({ error: 'Failed to fetch materials' });
+  }
+}
+
+// ---------- SCHOOL AUTHORITIES (institution-wide, not child-scoped) ----------
+export async function getSchoolAuthorities(req: Request, res: Response) {
+  try {
+    const [teachers, management, staff] = await Promise.all([
+      prisma.teachers.findMany(),
+      prisma.management.findMany(),
+      prisma.staff.findMany(),
+    ]);
+
+    const userIds = [...teachers.map((t) => t.id), ...management.map((m) => m.id)];
+    const users = await prisma.users.findMany({ where: { id: { in: userIds } } });
+    const userById = new Map(users.map((u) => [u.id, u]));
+
+    const yearsSince = (date: Date | null): string => {
+      if (!date) return '';
+      const years = Math.floor((Date.now() - date.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
+      return `${years} year${years === 1 ? '' : 's'}`;
+    };
+
+    const teacherAuthorities = teachers.map((t: typeof teachers[number]) => {
+      const user = userById.get(t.id);
+      return {
+        id: t.id,
+        name: t.full_name,
+        position: t.specialization ? `${t.specialization} Teacher` : 'Teacher',
+        department: 'Academic Staff',
+        avatar: user?.avatar_url ?? '',
+        email: user?.email ?? '',
+        phone: t.phone ?? '',
+        experience: yearsSince(t.joining_date),
+        qualifications: t.qualification ?? '',
+        office: '',
+      };
+    });
+
+    const managementAuthorities = management.map((m: typeof management[number]) => {
+      const user = userById.get(m.id);
+      return {
+        id: m.id,
+        name: m.full_name,
+        position: m.position ?? 'Management',
+        department: 'Administration',
+        avatar: user?.avatar_url ?? m.avatar_url ?? '',
+        email: user?.email ?? '',
+        phone: '',
+        experience: yearsSince(m.joining_date),
+        qualifications: m.qualifications ?? '',
+        office: m.office ?? '',
+      };
+    });
+
+    const staffAuthorities = staff.map((s: typeof staff[number]) => ({
+      id: s.id,
+      name: s.full_name,
+      position: s.designation ?? 'Staff',
+      department: s.department ?? 'Support Staff',
+      avatar: '',
+      email: s.email ?? '',
+      phone: s.phone ?? '',
+      experience: s.experience_years != null ? `${s.experience_years} years` : '',
+      qualifications: '',
+      office: '',
+    }));
+
+    const authorities = [...teacherAuthorities, ...managementAuthorities, ...staffAuthorities]
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    res.json({ authorities });
+  } catch (err) {
+    console.error('getSchoolAuthorities error:', err);
+    res.status(500).json({ error: 'Failed to fetch school authorities' });
+  }
+}

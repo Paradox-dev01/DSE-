@@ -114,7 +114,7 @@ model attendance_sessions {
   created_by         String               @db.Uuid
   attendance_records attendance_records[]
   class_schedules    class_schedules      @relation(fields: [class_schedule_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  teachers           teachers             @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users              users                @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_asess_creator")
 
   @@unique([class_schedule_id, session_date])
   @@index([class_schedule_id])
@@ -276,8 +276,8 @@ model homeworks {
   created_by           String                 @db.Uuid
   created_at           DateTime?              @default(now()) @db.Timestamp(6)
   homework_submissions homework_submissions[]
+  users                users                  @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_hw_creator")
   class_subjects       class_subjects         @relation(fields: [class_subject_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_hw_cs")
-  teachers             teachers               @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -291,6 +291,20 @@ model leave_requests {
   reason     String?
   status     String?
   users      users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_leave_user")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model management {
+  id             String    @id @db.Uuid
+  full_name      String
+  position       String?
+  qualifications String?
+  office         String?
+  avatar_url     String?
+  joining_date   DateTime? @db.Date
+  created_at     DateTime? @default(now()) @db.Timestamp(6)
+  updated_at     DateTime? @default(now()) @db.Timestamp(6)
+  users          users     @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
@@ -394,9 +408,9 @@ model results {
   remarks        String?
   entered_by     String?   @db.Uuid
   entered_at     DateTime? @default(now()) @db.Timestamp(6)
+  users          users?    @relation(fields: [entered_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_results_enterer")
   exams          exams     @relation(fields: [exam_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_results_exam")
   students       students  @relation(fields: [student_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_results_student")
-  teachers       teachers? @relation(fields: [entered_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@unique([exam_id, student_id])
 }
@@ -410,6 +424,10 @@ model staff {
   email            String?
   phone            String?
   experience_years Int?
+  qualifications   String?
+  office           String?
+  avatar_url       String?
+  users            users   @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_staff_users")
 }
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
@@ -460,23 +478,21 @@ model subjects {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model teachers {
-  id                  String                @id @db.Uuid
-  employee_id         String?               @unique
-  full_name           String
-  phone               String?
-  qualification       String?
-  specialization      String?
-  joining_date        DateTime?             @db.Date
-  created_at          DateTime?             @default(now()) @db.Timestamp(6)
-  updated_at          DateTime?             @default(now()) @db.Timestamp(6)
-  address             String?
-  bio                 String?
-  attendance_sessions attendance_sessions[]
-  class_subjects      class_subjects[]
-  homeworks           homeworks[]
-  resources           resources[]
-  results             results[]
-  users               users                 @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_teachers_users")
+  id             String           @id @db.Uuid
+  employee_id    String?          @unique
+  full_name      String
+  phone          String?
+  qualification  String?
+  specialization String?
+  joining_date   DateTime?        @db.Date
+  created_at     DateTime?        @default(now()) @db.Timestamp(6)
+  updated_at     DateTime?        @default(now()) @db.Timestamp(6)
+  address        String?
+  bio            String?
+  office         String?
+  class_subjects class_subjects[]
+  resources      resources[]
+  users          users            @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_teachers_users")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -494,15 +510,20 @@ model users {
   admins                               admins?
   announcement_reads                   announcement_reads[]
   announcements                        announcements[]
+  attendance_sessions                  attendance_sessions[]
   events                               events[]
   guardians                            guardians?
+  homeworks                            homeworks[]
   leave_requests                       leave_requests[]
+  management                           management?
   message_group_members                message_group_members[]
   message_groups                       message_groups[]
   messages_messages_receiver_idTousers messages[]              @relation("messages_receiver_idTousers")
   messages_messages_sender_idTousers   messages[]              @relation("messages_sender_idTousers")
   notifications                        notifications[]
   planner_events                       planner_events[]
+  results                              results[]
+  staff                                staff?
   students                             students?
   teachers                             teachers?
 }
