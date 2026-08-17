@@ -423,3 +423,73 @@ export async function getSchoolAuthorities(req: Request, res: Response) {
     res.status(500).json({ error: 'Failed to fetch school authorities' });
   }
 }
+
+
+
+// ---------- ATTENDANCE (full history) ----------
+export async function getAttendanceList(req: Request, res: Response) {
+  try {
+    const guardianId = req.user!.id;
+    const childId = String(req.params.childId);
+    const student = await verifyChildOwnership(guardianId, childId);
+    if (!student) return res.status(404).json({ error: 'Child not found' });
+
+    const attendanceRecords = await prisma.attendance_records.findMany({
+      where: { student_id: childId },
+      include: { attendance_sessions: true },
+      orderBy: { attendance_sessions: { session_date: 'asc' } },
+    });
+
+    const ATTENDANCE_STATUS_MAP: Record<string, 'present' | 'absent' | 'late'> = {
+      P: 'present', A: 'absent', L: 'late', E: 'absent',
+    };
+
+    const attendance = attendanceRecords.map((r) => ({
+      date: r.attendance_sessions.session_date.toISOString().split('T')[0],
+      status: ATTENDANCE_STATUS_MAP[r.status] ?? 'absent',
+      reason: r.remark ?? undefined,
+    }));
+
+    res.json({ attendance });
+  } catch (err) {
+    console.error('getAttendanceList error:', err);
+    res.status(500).json({ error: 'Failed to fetch attendance' });
+  }
+}
+
+// ---------- FEES (full history) ----------
+export async function getFeesList(req: Request, res: Response) {
+  try {
+    const guardianId = req.user!.id;
+    const childId = String(req.params.childId);
+    const student = await verifyChildOwnership(guardianId, childId);
+    if (!student) return res.status(404).json({ error: 'Child not found' });
+
+    const feesRaw = await prisma.fees.findMany({
+      where: { student_id: childId },
+      include: { fee_categories: true, payments: true },
+      orderBy: { due_date: 'asc' },
+    });
+
+    const fees = feesRaw.map((f) => {
+      const isPastDue = f.due_date ? f.due_date < new Date() : false;
+      let status: 'paid' | 'pending' | 'overdue' = 'pending';
+      if (f.status === 'paid') status = 'paid';
+      else if (f.status === 'unpaid' || f.status === 'partial') status = isPastDue ? 'overdue' : 'pending';
+
+      return {
+        id: f.id,
+        type: f.fee_categories?.name ?? '',
+        amount: Number(f.amount),
+        dueDate: f.due_date ? f.due_date.toISOString().split('T')[0] : '',
+        status,
+        paidAmount: f.payments.reduce((sum: number, p: { amount_paid: any }) => sum + Number(p.amount_paid), 0) || undefined,
+      };
+    });
+
+    res.json({ fees });
+  } catch (err) {
+    console.error('getFeesList error:', err);
+    res.status(500).json({ error: 'Failed to fetch fees' });
+  }
+}
