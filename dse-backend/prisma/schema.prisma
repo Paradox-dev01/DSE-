@@ -87,6 +87,7 @@ model announcements {
   created_by           String?                @db.Uuid
   created_at           DateTime?              @default(now()) @db.Timestamp(6)
   is_pinned            Boolean?               @default(false)
+  category             String?
   announcement_reads   announcement_reads[]
   announcement_targets announcement_targets[]
   users                users?                 @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)

@@ -493,3 +493,115 @@ export async function getFeesList(req: Request, res: Response) {
     res.status(500).json({ error: 'Failed to fetch fees' });
   }
 }
+
+
+
+// ---------- NOTICES (full list: personal notifications + targeted announcements) ----------
+export async function getNoticesList(req: Request, res: Response) {
+  try {
+    const guardianId = req.user!.id;
+
+    const notificationsRaw = await prisma.notifications.findMany({
+      where: { user_id: guardianId },
+      orderBy: { created_at: 'desc' },
+    });
+
+    const NOTICE_CATEGORY_MAP: Record<string, 'academic' | 'event' | 'emergency' | 'general'> = {
+      academic: 'academic', announcement: 'general', urgent: 'emergency', system: 'general',
+    };
+
+    const notificationNotices = notificationsRaw.map((n) => ({
+      id: n.id,
+      title: n.title,
+      content: n.description ?? '',
+      date: n.created_at ? n.created_at.toISOString().split('T')[0] : '',
+      category: (n.type ? NOTICE_CATEGORY_MAP[n.type] : undefined) ?? 'general',
+      isRead: n.is_read ?? false,
+      isPinned: false,
+    }));
+
+    const announcementsRaw = await prisma.announcements.findMany({
+      where: { announcement_targets: { some: { target_role: 'guardian' } } },
+      include: { announcement_reads: { where: { user_id: guardianId } } },
+      orderBy: { created_at: 'desc' },
+    });
+
+    const announcementNotices = announcementsRaw.map((a) => ({
+      id: a.id,
+      title: a.title,
+      content: a.message,
+      date: a.created_at ? a.created_at.toISOString().split('T')[0] : '',
+      category: (a.category as 'academic' | 'event' | 'emergency' | 'general' | null) ?? 'general',
+      isRead: a.announcement_reads.length > 0,
+      isPinned: a.is_pinned ?? false,
+    }));
+
+    const notices = [...notificationNotices, ...announcementNotices]
+      .sort((x, y) => (x.date < y.date ? 1 : -1));
+
+    res.json({ notices });
+  } catch (err) {
+    console.error('getNoticesList error:', err);
+    res.status(500).json({ error: 'Failed to fetch notices' });
+  }
+}
+
+// ---------- MESSAGES (full inbox) ----------
+export async function getMessagesList(req: Request, res: Response) {
+  try {
+    const guardianId = req.user!.id;
+
+    const guardianGroups = await prisma.message_group_members.findMany({
+      where: { user_id: guardianId },
+      select: { group_id: true },
+    });
+    const groupIds = guardianGroups.map((g) => g.group_id).filter((id): id is string => typeof id === 'string');
+
+    const messagesRaw = await prisma.messages.findMany({
+      where: {
+        OR: [
+          { receiver_id: guardianId },
+          ...(groupIds.length ? [{ group_id: { in: groupIds } }] : []),
+        ],
+      },
+      orderBy: { created_at: 'desc' },
+    });
+
+    const senderIds = [...new Set(messagesRaw.map((m) => m.sender_id).filter((id): id is string => typeof id === 'string'))];
+    const msgGroupIds = [...new Set(messagesRaw.map((m) => m.group_id).filter((id): id is string => typeof id === 'string'))];
+
+    const [senderTeachers, senderManagement, senderStaff, groups] = await Promise.all([
+      prisma.teachers.findMany({ where: { id: { in: senderIds } } }),
+      prisma.management.findMany({ where: { id: { in: senderIds } } }),
+      prisma.staff.findMany({ where: { id: { in: senderIds } } }),
+      prisma.message_groups.findMany({ where: { id: { in: msgGroupIds } } }),
+    ]);
+
+    const senderById = new Map<string, { name: string; role: string; avatar: string }>();
+    senderTeachers.forEach((t) => senderById.set(t.id, { name: t.full_name, role: 'Teacher', avatar: '' }));
+    senderManagement.forEach((m) => senderById.set(m.id, { name: m.full_name, role: m.position ?? 'Management', avatar: m.avatar_url ?? '' }));
+    senderStaff.forEach((s) => senderById.set(s.id, { name: s.full_name, role: s.designation ?? 'Staff', avatar: '' }));
+
+    const groupById = new Map(groups.map((g) => [g.id, g]));
+
+    const messages = messagesRaw.map((m) => {
+      const sender = typeof m.sender_id === 'string' ? senderById.get(m.sender_id) : undefined;
+      const group = typeof m.group_id === 'string' ? groupById.get(m.group_id) : undefined;
+      return {
+        id: m.id,
+        from: sender?.name ?? 'Unknown',
+        role: sender?.role ?? '',
+        content: m.content ?? '',
+        timestamp: m.created_at ? m.created_at.toISOString() : '',
+        isRead: m.is_read ?? false,
+        avatar: sender?.avatar ?? '',
+        group: group?.group_name ?? undefined,
+      };
+    });
+
+    res.json({ messages });
+  } catch (err) {
+    console.error('getMessagesList error:', err);
+    res.status(500).json({ error: 'Failed to fetch messages' });
+  }
+}
