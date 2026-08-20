@@ -1,25 +1,26 @@
-import { Bell, ChevronDown, User, Moon, Sun } from 'lucide-react';
-import { mockChildren, mockMessages, type Child } from '../data/mockData';
+import { Bell, ChevronDown, User, Moon, Sun, LayoutDashboard } from 'lucide-react';
+import { mockMessages, mockNotices, type Child } from '../data/mockData';
 import { useState, useRef } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
+import { useAuth } from '../contexts/AuthContext';
 import { useClickOutside } from '../hooks/useClickOutside';
 import type { NavigationItem } from '../App';
-import { mockNotices } from '../data/mockData';
 
 interface TopBarProps {
   selectedChild: Child;
+  allChildren: Child[];
+  currentView: NavigationItem;
   onChildChange: (childId: string) => void;
   onNavigate: (view: NavigationItem) => void;
 }
 
-export function TopBar({ selectedChild, onChildChange, onNavigate }: TopBarProps) {
+export function TopBar({ selectedChild, allChildren, currentView, onChildChange, onNavigate }: TopBarProps) {
   const [showChildDropdown, setShowChildDropdown] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const { theme, toggleTheme } = useTheme();
+  const { logout } = useAuth();
 
   const [showNotifications, setShowNotifications] = useState(false);
-  const unreadNotices = mockNotices.filter(n => !n.isRead);
-
   const unreadMessages = mockMessages[selectedChild.id]?.filter(m => !m.isRead) || [];
   const notifications = [
     ...mockNotices.filter(n => !n.isRead).map(n => ({
@@ -45,16 +46,19 @@ export function TopBar({ selectedChild, onChildChange, onNavigate }: TopBarProps
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700">
       <div className="flex items-center justify-between h-16 px-4 md:px-6">
-        {/* Left Section: Logo & School Name */}
-        <div className="flex items-center gap-3">
+        {/* Left Section: Logo & School Name — now a Dashboard shortcut */}
+        <button
+          onClick={() => onNavigate('dashboard')}
+          className="flex items-center gap-3 transition-opacity rounded-lg hover:opacity-80"
+        >
           <div className="flex items-center justify-center w-10 h-10 bg-blue-600 rounded-lg">
             <span className="text-lg font-bold text-white">SP</span>
           </div>
-          <div className="hidden sm:block">
+          <div className="hidden text-left sm:block">
             <h1 className="font-semibold text-neutral-900 dark:text-white">Sunnydale Public School</h1>
             <p className="text-xs text-neutral-500 dark:text-neutral-400">Guardian Portal</p>
           </div>
-        </div>
+        </button>
 
         {/* Right Section: Child Switcher, Theme Toggle, Notifications, Profile */}
         <div className="flex items-center gap-2 md:gap-4">
@@ -78,7 +82,7 @@ export function TopBar({ selectedChild, onChildChange, onNavigate }: TopBarProps
 
             {showChildDropdown && (
               <div className="absolute right-0 w-64 py-2 mt-2 bg-white border rounded-lg shadow-lg dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700">
-                {mockChildren.map((child) => (
+                {allChildren.map((child) => (
                   <button
                     key={child.id}
                     onClick={() => {
@@ -170,7 +174,31 @@ export function TopBar({ selectedChild, onChildChange, onNavigate }: TopBarProps
             {showProfileMenu && (
               <div className="absolute right-0 w-48 py-2 mt-2 bg-white border rounded-lg shadow-lg dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700">
                 <button
-                  onClick={() =>{
+                  onClick={() => {
+                    setShowProfileMenu(false);
+                    onNavigate('dashboard');
+                  }}
+                  className={`w-full flex items-center gap-2 px-4 py-2 text-sm text-left hover:bg-neutral-50 dark:hover:bg-neutral-700 ${
+                    currentView === 'dashboard'
+                      ? 'text-blue-600 dark:text-blue-400 font-medium'
+                      : 'text-neutral-700 dark:text-neutral-300'
+                  }`}>
+                  <LayoutDashboard className="w-4 h-4" />
+
+
+                  {/*                   
+```typescriptreact
+<LayoutDashboard className="w-4 h-4" />
+```
+i want for the other ones as well
+*/}
+
+
+
+                  Dashboard
+                </button>
+                <button
+                  onClick={() => {
                     setShowProfileMenu(false);
                     onNavigate('profile');
                   }}
@@ -187,6 +215,10 @@ export function TopBar({ selectedChild, onChildChange, onNavigate }: TopBarProps
                 </button>
                 <hr className="my-2 border-neutral-200 dark:border-neutral-700" />
                 <button
+                  onClick={() => {
+                    setShowProfileMenu(false);
+                    logout();
+                  }}
                   className="w-full px-4 py-2 text-sm text-left text-red-600 hover:bg-neutral-50 dark:hover:bg-neutral-700">
                   Logout
                 </button>

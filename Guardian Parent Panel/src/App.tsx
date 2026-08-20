@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Dashboard } from './components/Dashboard';
 import { Academics } from './components/Academics';
 import { Attendance } from './components/Attendance';
@@ -10,7 +10,8 @@ import { Settings } from './components/Settings';
 import { TopBar } from './components/TopBar';
 import { Sidebar } from './components/Sidebar';
 import { BottomNav } from './components/BottomNav';
-import { mockChildren } from './data/mockData';
+import { type Child } from './data/mockData';
+import { api, ApiError } from './lib/api';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LoginScreen } from './components/LoginScreen';
@@ -21,11 +22,39 @@ export type NavigationItem = 'dashboard' | 'academics' | 'attendance' | 'fees' |
 
 function AppShell() {
   const [currentView, setCurrentView] = useState<NavigationItem>('dashboard');
-  const [selectedChildId, setSelectedChildId] = useState(mockChildren[0].id);
 
-  const selectedChild = mockChildren.find(child => child.id === selectedChildId) || mockChildren[0];
+  const [children, setChildren] = useState<Child[]>([]);
+  const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
+  const [isLoadingChildren, setIsLoadingChildren] = useState(true);
+  const [childrenError, setChildrenError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadChildren() {
+      try {
+        const data = await api.get<{ children: Child[] }>('/guardian/children');
+        if (cancelled) return;
+        setChildren(data.children);
+        if (data.children.length > 0) {
+          setSelectedChildId(data.children[0].id);
+        }
+      } catch (err) {
+        if (cancelled) return;
+        setChildrenError(err instanceof ApiError ? err.message : 'Failed to load children');
+      } finally {
+        if (!cancelled) setIsLoadingChildren(false);
+      }
+    }
+
+    loadChildren();
+    return () => { cancelled = true; };
+  }, []);
+
+  const selectedChild = children.find(child => child.id === selectedChildId) ?? null;
 
   const renderContent = () => {
+    if (!selectedChildId) return null;
     switch (currentView) {
       case 'dashboard':
         return <Dashboard childId={selectedChildId} />;
@@ -50,10 +79,36 @@ function AppShell() {
     }
   };
 
+  if (isLoadingChildren) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-neutral-50 dark:bg-neutral-900">
+        <div className="w-8 h-8 border-2 border-blue-600 rounded-full border-t-transparent animate-spin" />
+      </div>
+    );
+  }
+
+  if (childrenError) {
+    return (
+      <div className="flex items-center justify-center min-h-screen px-4 text-center bg-neutral-50 dark:bg-neutral-900">
+        <p className="text-red-600 dark:text-red-400">{childrenError}</p>
+      </div>
+    );
+  }
+
+  if (!selectedChild) {
+    return (
+      <div className="flex items-center justify-center min-h-screen px-4 text-center bg-neutral-50 dark:bg-neutral-900">
+        <p className="text-neutral-600 dark:text-neutral-400">No children are linked to this account yet.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-neutral-50 dark:bg-neutral-900">
       <TopBar
         selectedChild={selectedChild}
+        allChildren={children}
+        currentView={currentView}
         onChildChange={setSelectedChildId}
         onNavigate={setCurrentView}
       />

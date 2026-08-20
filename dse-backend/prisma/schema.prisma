@@ -236,17 +236,20 @@ model fees {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model guardians {
-  id                  String                @id @db.Uuid
-  guardian_code       String                @unique
-  full_name           String
-  phone               String?
-  email               String?
-  address             String?
-  created_at          DateTime?             @default(now()) @db.Timestamp(6)
-  updated_at          DateTime?             @default(now()) @db.Timestamp(6)
-  event_participation event_participation[]
-  users               users                 @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_guardians_users")
-  students            students[]
+  id                                                                             String                        @id @db.Uuid
+  guardian_code                                                                  String                        @unique
+  full_name                                                                      String
+  phone                                                                          String?
+  email                                                                          String?
+  address                                                                        String?
+  created_at                                                                     DateTime?                     @default(now()) @db.Timestamp(6)
+  updated_at                                                                     DateTime?                     @default(now()) @db.Timestamp(6)
+  event_participation                                                            event_participation[]
+  guardian_preferences                                                           guardian_preferences?
+  users                                                                          users                         @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_guardians_users")
+  student_secondary_guardians_student_secondary_guardians_added_byToguardians    student_secondary_guardians[] @relation("student_secondary_guardians_added_byToguardians")
+  student_secondary_guardians_student_secondary_guardians_guardian_idToguardians student_secondary_guardians[] @relation("student_secondary_guardians_guardian_idToguardians")
+  students                                                                       students[]
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -433,38 +436,40 @@ model staff {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model students {
-  id                   String                 @id @db.Uuid
-  guardian_id          String                 @db.Uuid
-  class_id             String                 @db.Uuid
-  student_code         String?                @unique
-  full_name            String
-  roll_number          Int
-  date_of_birth        DateTime?              @db.Date
-  gender               String?
-  admission_date       DateTime?              @db.Date
-  phone                String?
-  address              String?
-  created_at           DateTime?              @default(now()) @db.Timestamp(6)
-  updated_at           DateTime?              @default(now()) @db.Timestamp(6)
-  avatar_url           String?
-  email                String?
-  blood_group          String?
-  house                String?
-  guardian_email       String?
-  guardian_phone       String?
-  guardian_name        String?
-  performance          Json?
-  attendance           Json?
-  achievements         achievements[]
-  alerts               alerts[]
-  attendance_records   attendance_records[]
-  event_participation  event_participation[]
-  fees                 fees[]
-  homework_submissions homework_submissions[]
-  results              results[]
-  classes              classes                @relation(fields: [class_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_students_class")
-  guardians            guardians              @relation(fields: [guardian_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_students_guardian")
-  users                users                  @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  id                          String                        @id @db.Uuid
+  guardian_id                 String                        @db.Uuid
+  class_id                    String                        @db.Uuid
+  student_code                String?                       @unique
+  full_name                   String
+  roll_number                 Int
+  date_of_birth               DateTime?                     @db.Date
+  gender                      String?
+  admission_date               DateTime?                     @db.Date
+  phone                       String?
+  address                     String?
+  created_at                  DateTime?                     @default(now()) @db.Timestamp(6)
+  updated_at                  DateTime?                     @default(now()) @db.Timestamp(6)
+  avatar_url                  String?
+  email                       String?
+  blood_group                 String?
+  house                       String?
+  guardian_email               String?
+  guardian_phone              String?
+  guardian_name               String?
+  performance                 Json?
+  attendance                  Json?
+  status                      String                        @default("active")
+  achievements                achievements[]
+  alerts                      alerts[]
+  attendance_records          attendance_records[]
+  event_participation         event_participation[]
+  fees                        fees[]
+  homework_submissions        homework_submissions[]
+  results                     results[]
+  student_secondary_guardians student_secondary_guardians[]
+  classes                     classes                       @relation(fields: [class_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_students_class")
+  guardians                   guardians                     @relation(fields: [guardian_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_students_guardian")
+  users                       users                         @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([class_id, roll_number])
   @@index([guardian_id])
@@ -527,4 +532,31 @@ model users {
   staff                                staff?
   students                             students?
   teachers                             teachers?
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model guardian_preferences {
+  guardian_id         String    @id @db.Uuid
+  email_notifications Boolean   @default(true)
+  push_notifications  Boolean   @default(true)
+  sms_notifications   Boolean   @default(false)
+  language            String    @default("English")
+  updated_at          DateTime? @default(now()) @db.Timestamp(6)
+  guardians           guardians @relation(fields: [guardian_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_gp_guardian")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model student_secondary_guardians {
+  id                                                           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  student_id                                                   String    @db.Uuid
+  guardian_id                                                  String    @db.Uuid
+  added_by                                                     String    @db.Uuid
+  status                                                       String    @default("active")
+  created_at                                                   DateTime? @default(now()) @db.Timestamp(6)
+  guardians_student_secondary_guardians_added_byToguardians    guardians @relation("student_secondary_guardians_added_byToguardians", fields: [added_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_ssg_added_by")
+  guardians_student_secondary_guardians_guardian_idToguardians guardians @relation("student_secondary_guardians_guardian_idToguardians", fields: [guardian_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_ssg_guardian")
+  students                                                     students  @relation(fields: [student_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_ssg_student")
+
+  @@unique([student_id, guardian_id])
 }
