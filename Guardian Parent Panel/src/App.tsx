@@ -54,20 +54,20 @@ function AppShell() {
   const selectedChild = children.find(child => child.id === selectedChildId) ?? null;
 
   const renderContent = () => {
-    if (!selectedChildId) return null;
+    if (!selectedChild) return null;
     switch (currentView) {
       case 'dashboard':
-        return <Dashboard childId={selectedChildId} />;
+        return <Dashboard childId={selectedChild.id} relationshipLabel={selectedChild.relationshipLabel} />;
       case 'academics':
-        return <Academics childId={selectedChildId} />;
+        return <Academics childId={selectedChild.id} />;
       case 'attendance':
-        return <Attendance childId={selectedChildId} />;
+        return <Attendance childId={selectedChild.id} />;
       case 'fees':
-        return <Fees childId={selectedChildId} />;
+        return <Fees childId={selectedChild.id} />;
       case 'notices':
         return <Notices />;
       case 'messages':
-        return <Messages childId={selectedChildId} />;
+        return <Messages childId={selectedChild.id} />;
       case 'events':
         return <Events />;
       case 'settings':
@@ -75,7 +75,7 @@ function AppShell() {
       case 'profile':
         return <GuardianProfilePage onClose={() => setCurrentView('dashboard')} />;
       default:
-        return <Dashboard childId={selectedChildId} />;
+        return <Dashboard childId={selectedChild.id} relationshipLabel={selectedChild.relationshipLabel} />;
     }
   };
 

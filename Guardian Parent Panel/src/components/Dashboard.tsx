@@ -1,38 +1,155 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { 
-  Clock, BookOpen, AlertCircle, Calendar, CreditCard, 
-  MessageSquare, TrendingUp, CheckCircle, ArrowRight 
+  Clock, BookOpen, Calendar, CreditCard, 
+  CheckCircle 
 } from 'lucide-react';
-import { 
-  mockAttendance, mockHomework, mockExams, mockFees, 
-  mockNotices, mockMessages, mockChildren 
-} from '../data/mockData';
+import { api, ApiError } from '../lib/api';
 
 interface DashboardProps {
   childId: string;
+  relationshipLabel: string;
 }
 
-export function Dashboard({ childId }: DashboardProps) {
-  const child = mockChildren.find(c => c.id === childId);
-  const attendance = mockAttendance[childId] || [];
-  const homework = mockHomework[childId] || [];
-  const exams = mockExams[childId] || [];
-  const fees = mockFees[childId] || [];
-  const messages = mockMessages[childId] || [];
+interface AttendanceEntry {
+  date: string;
+  status: 'present' | 'absent' | 'late';
+  reason?: string;
+}
 
-  const todayAttendance = attendance[0];
+interface HomeworkEntry {
+  id: string;
+  subject: string;
+  title: string;
+  description: string;
+  dueDate: string;
+  status: 'pending' | 'submitted' | 'late';
+}
+
+interface ExamEntry {
+  id: string;
+  subject: string;
+  date: string;
+  time: string;
+  syllabus: string;
+}
+
+interface FeeEntry {
+  id: string;
+  type: string;
+  amount: number;
+  dueDate: string;
+  status: 'paid' | 'pending' | 'overdue';
+  paidAmount?: number;
+}
+
+interface NoticeEntry {
+  id: string;
+  title: string;
+  content: string;
+  date: string;
+  category: 'academic' | 'event' | 'emergency' | 'general';
+  isRead: boolean;
+  isPinned: boolean;
+}
+
+interface MessageEntry {
+  id: string;
+  from: string;
+  role: string;
+  content: string;
+  timestamp: string;
+  isRead: boolean;
+  avatar: string;
+}
+
+interface ScheduleEntry {
+  subject: string;
+  startTime: string; // "HH:MM"
+  endTime: string;
+  room: string;
+}
+
+interface DashboardData {
+  attendance: AttendanceEntry[];
+  homework: HomeworkEntry[];
+  exams: ExamEntry[];
+  fees: FeeEntry[];
+  notices: NoticeEntry[];
+  messages: MessageEntry[];
+  todaySchedule: ScheduleEntry[];
+}
+
+function findNextClass(schedule: ScheduleEntry[]): ScheduleEntry | null {
+  const now = new Date();
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
+  for (const entry of schedule) {
+    const [h, m] = entry.startTime.split(':').map(Number);
+    if (h * 60 + m >= nowMinutes) return entry;
+  }
+  return null;
+}
+
+export function Dashboard({ childId, relationshipLabel }: DashboardProps) {
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setIsLoading(true);
+    setError(null);
+
+    async function loadDashboard() {
+      try {
+        const result = await api.get<DashboardData>(`/guardian/children/${childId}/dashboard`);
+        if (!cancelled) setData(result);
+      } catch (err) {
+        if (!cancelled) setError(err instanceof ApiError ? err.message : 'Failed to load dashboard');
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    }
+
+    loadDashboard();
+    return () => { cancelled = true; };
+  }, [childId]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <div className="w-8 h-8 border-2 border-blue-600 rounded-full border-t-transparent animate-spin" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 text-center text-red-600 bg-white border shadow-sm rounded-2xl dark:bg-neutral-800 dark:text-red-400 border-neutral-200 dark:border-neutral-700">
+        {error}
+      </div>
+    );
+  }
+
+  if (!data) return null;
+
+  const { attendance, homework, exams, fees, notices, messages, todaySchedule } = data;
+
   const pendingHomework = homework.filter(hw => hw.status === 'pending');
   const upcomingExams = exams.slice(0, 2);
-  const pendingFees = fees.filter(f => f.status === 'pending');
-  const unreadMessages = messages.filter(m => !m.isRead);
-  const recentNotices = mockNotices.slice(0, 3);
+  const pendingFees = fees.filter(f => f.status === 'pending' || f.status === 'overdue');
+  const recentNotices = notices.slice(0, 3);
+  const nextClass = findNextClass(todaySchedule);
 
-  // Calculate attendance percentage
+  const todayAttendance = attendance[0];
   const presentDays = attendance.filter(a => a.status === 'present').length;
-  const attendancePercentage = Math.round((presentDays / attendance.length) * 100);
+  const attendancePercentage = attendance.length > 0
+    ? Math.round((presentDays / attendance.length) * 100)
+    : 0;
 
   const getDaysUntil = (dateStr: string) => {
-    const today = new Date('2026-02-07');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
     const target = new Date(dateStr);
     const diff = Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
     return diff;
@@ -43,7 +160,7 @@ export function Dashboard({ childId }: DashboardProps) {
       {/* Welcome Message */}
       <div>
         <h1 className="text-2xl font-semibold md:text-3xl text-neutral-900 dark:text-white">
-          Good morning, Parent
+          Good morning, {relationshipLabel}
         </h1>
         <p className="mt-1 text-neutral-600 dark:text-neutral-500 dark:text-neutral-400">Everything looks good today</p>
       </div>
@@ -70,7 +187,9 @@ export function Dashboard({ childId }: DashboardProps) {
             </div>
             <div>
               <p className="text-sm opacity-90">Next Class</p>
-              <p className="font-semibold">Mathematics at 10:00 AM</p>
+              <p className="font-semibold">
+                {nextClass ? `${nextClass.subject} at ${nextClass.startTime}` : 'No more classes today'}
+              </p>
             </div>
           </div>
 
@@ -174,28 +293,32 @@ export function Dashboard({ childId }: DashboardProps) {
             View All
           </button>
         </div>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {upcomingExams.map((exam) => {
-            const daysUntil = getDaysUntil(exam.date);
-            return (
-              <div key={exam.id} className="p-4 border border-neutral-200 rounded-xl dark:border-neutral-700">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h4 className="font-semibold text-neutral-900 dark:text-white">{exam.subject}</h4>
-                    <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-500 dark:text-neutral-400">{exam.syllabus}</p>
+        {upcomingExams.length > 0 ? (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {upcomingExams.map((exam) => {
+              const daysUntil = getDaysUntil(exam.date);
+              return (
+                <div key={exam.id} className="p-4 border border-neutral-200 rounded-xl dark:border-neutral-700">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h4 className="font-semibold text-neutral-900 dark:text-white">{exam.subject}</h4>
+                      <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-500 dark:text-neutral-400">{exam.syllabus}</p>
+                    </div>
+                    <div className="px-3 py-1 text-xs font-medium text-orange-700 bg-orange-100 rounded-full dark:bg-orange-900 dark:text-orange-200">
+                      {daysUntil} days
+                    </div>
                   </div>
-                  <div className="px-3 py-1 text-xs font-medium text-orange-700 bg-orange-100 rounded-full dark:bg-orange-900 dark:text-orange-200">
-                    {daysUntil} days
+                  <div className="flex items-center gap-2 mt-3 text-sm text-neutral-600 dark:text-neutral-500 dark:text-neutral-400">
+                    <Calendar className="w-4 h-4" />
+                    <span>{new Date(exam.date).toLocaleDateString()}{exam.time ? ` at ${exam.time}` : ''}</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 mt-3 text-sm text-neutral-600 dark:text-neutral-500 dark:text-neutral-400">
-                  <Calendar className="w-4 h-4" />
-                  <span>{new Date(exam.date).toLocaleDateString()} at {exam.time}</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="py-4 text-sm text-center text-neutral-500 dark:text-neutral-400">No upcoming exams</p>
+        )}
       </div>
 
       {/* Notices & Messages Row */}
@@ -208,26 +331,30 @@ export function Dashboard({ childId }: DashboardProps) {
               View All
             </button>
           </div>
-          <div className="space-y-3">
-            {recentNotices.map((notice) => (
-              <div 
-                key={notice.id} 
-                className={`p-4 rounded-lg border ${
-                  notice.isPinned ? 'border-blue-200 bg-blue-50 dark:bg-blue-900 dark:border-blue-700'   // TODO: dark:bg-blue-900  overridden; needs review
-                                  : 'border-neutral-200 bg-neutral-50 dark:bg-neutral-800 dark:border-neutral-700'
-                }`}
-              >
-                <div className="flex items-start justify-between">
-                  <h4 className="font-medium text-neutral-900 dark:text-white">{notice.title}</h4>
-                  {!notice.isRead && (
-                    <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
-                  )}
+          {recentNotices.length > 0 ? (
+            <div className="space-y-3">
+              {recentNotices.map((notice) => (
+                <div 
+                  key={notice.id} 
+                  className={`p-4 rounded-lg border ${
+                    notice.isPinned ? 'border-blue-200 bg-blue-50 dark:bg-blue-900 dark:border-blue-700'
+                                    : 'border-neutral-200 bg-neutral-50 dark:bg-neutral-800 dark:border-neutral-700'
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <h4 className="font-medium text-neutral-900 dark:text-white">{notice.title}</h4>
+                    {!notice.isRead && (
+                      <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
+                    )}
+                  </div>
+                  <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-500 dark:text-neutral-400 line-clamp-2">{notice.content}</p>
+                  <p className="mt-2 text-xs text-neutral-500 dark:text-neutral-400">{new Date(notice.date).toLocaleDateString()}</p>
                 </div>
-                <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-500 dark:text-neutral-400 line-clamp-2">{notice.content}</p>
-                <p className="mt-2 text-xs text-neutral-500 dark:text-neutral-400">{new Date(notice.date).toLocaleDateString()}</p>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <p className="py-4 text-sm text-center text-neutral-500 dark:text-neutral-400">No notices</p>
+          )}
         </div>
 
         {/* Teacher Messages */}
@@ -238,36 +365,48 @@ export function Dashboard({ childId }: DashboardProps) {
               View All
             </button>
           </div>
-          <div className="space-y-3">
-            {messages.slice(0, 3).map((message) => (
-              <div 
-                key={message.id} 
-                className={`p-4 rounded-lg border cursor-pointer hover:bg-neutral-50 transition-colors ${
-                  !message.isRead ? 'border-blue-200 bg-blue-50 dark:bg-blue-900 dark:border-blue-700'   // TODO: dark:bg-blue-900  overridden; needs review
-                                  : 'border-neutral-200 bg-neutral-50 dark:bg-neutral-800 dark:border-neutral-700'
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  <img 
-                    src={message.avatar} 
-                    alt={message.from}
-                    className="object-cover w-10 h-10 rounded-full"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <h4 className="font-medium text-neutral-900 dark:text-white">{message.from}</h4>
-                      {!message.isRead && (
-                        <div className="flex-shrink-0 w-2 h-2 bg-blue-600 rounded-full"></div>
-                      )}
+          {messages.length > 0 ? (
+            <div className="space-y-3">
+              {messages.slice(0, 3).map((message) => (
+                <div 
+                  key={message.id} 
+                  className={`p-4 rounded-lg border cursor-pointer hover:bg-neutral-50 transition-colors ${
+                    !message.isRead ? 'border-blue-200 bg-blue-50 dark:bg-blue-900 dark:border-blue-700'
+                                    : 'border-neutral-200 bg-neutral-50 dark:bg-neutral-800 dark:border-neutral-700'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    {message.avatar ? (
+                      <img 
+                        src={message.avatar} 
+                        alt={message.from}
+                        className="object-cover w-10 h-10 rounded-full"
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center w-10 h-10 text-sm font-semibold text-white bg-blue-500 rounded-full">
+                        {message.from.charAt(0)}
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-medium text-neutral-900 dark:text-white">{message.from}</h4>
+                        {!message.isRead && (
+                          <div className="flex-shrink-0 w-2 h-2 bg-blue-600 rounded-full"></div>
+                        )}
+                      </div>
+                      <p className="text-xs text-neutral-500 dark:text-neutral-400">{message.role}</p>
+                      <p className="mt-1 text-sm text-neutral-700 dark:text-neutral-300 line-clamp-2">{message.content}</p>
+                      <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                        {message.timestamp ? new Date(message.timestamp).toLocaleString() : ''}
+                      </p>
                     </div>
-                    <p className="text-xs text-neutral-500 dark:text-neutral-400">{message.role}</p>
-                    <p className="mt-1 text-sm text-neutral-700 dark:text-neutral-300 line-clamp-2">{message.content}</p>
-                    <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">{message.timestamp}</p>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <p className="py-4 text-sm text-center text-neutral-500 dark:text-neutral-400">No messages</p>
+          )}
         </div>
       </div>
 
@@ -294,7 +433,7 @@ export function Dashboard({ childId }: DashboardProps) {
                     <div className={`px-3 py-1 rounded-full text-xs font-medium ${
                       daysUntil <= 1 ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'
                     }`}>
-                      Due in {daysUntil} {daysUntil === 1 ? 'day' : 'days'}
+                      {daysUntil >= 0 ? `Due in ${daysUntil} ${daysUntil === 1 ? 'day' : 'days'}` : 'Overdue'}
                     </div>
                   </div>
                 </div>

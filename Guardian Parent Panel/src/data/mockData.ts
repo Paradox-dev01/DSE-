@@ -5,6 +5,9 @@ export interface Child {
   rollNumber: string;
   photo: string;
   studentId: string;
+  relationship: string;
+  relationshipOther: string | null;
+  relationshipLabel: string;
 }
 
 export interface AttendanceData {
@@ -88,7 +91,10 @@ export const mockChildren: Child[] = [
     class: 'Grade 5-A',
     rollNumber: '15',
     photo: 'https://images.unsplash.com/photo-1595152772835-219674b2a8a6?w=200&h=200&fit=crop',
-    studentId: 'STU2024001'
+    studentId: 'STU2024001',
+    relationship: 'father',
+    relationshipOther: null,
+    relationshipLabel: 'Father'
   },
   {
     id: '2',
@@ -96,7 +102,10 @@ export const mockChildren: Child[] = [
     class: 'Grade 3-B',
     rollNumber: '22',
     photo: 'https://images.unsplash.com/photo-1609505848912-b7c3b8b4beda?w=200&h=200&fit=crop',
-    studentId: 'STU2024002'
+    studentId: 'STU2024002',
+    relationship: 'father',
+    relationshipOther: null,
+    relationshipLabel: 'Father'
   }
 ];
 
